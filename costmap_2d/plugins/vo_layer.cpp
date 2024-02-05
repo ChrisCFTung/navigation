@@ -1,19 +1,27 @@
+#include <ros/ros.h>
 #include <costmap_2d/vo_layer.h>
+#include <tf2_ros/message_filter.h>
 #include <pluginlib/class_list_macros.h>
 
 PLUGINLIB_EXPORT_CLASS(vo_layer_namespace::VOLayer, costmap_2d::Layer)
 
 using costmap_2d::LETHAL_OBSTACLE;
 
-namespace simple_layer_namespace
+namespace vo_layer_namespace
 {
 
 VOLayer::VOLayer() {}
 
 void VOLayer::onInitialize()
 {
-  ros::NodeHandle nh("~/" + name_);
+  ros::NodeHandle nh("~/" + name_), g_nh;
   current_ = true;
+  global_frame_ = layered_costmap_->getGlobalFrameID();
+
+  std::string topic;
+  nh.param("topic", topic, std::string(""));
+  
+  ros::Subscriber sub=nh.subscribe(topic, 10, PoseCallback);
 
   dsrv_ = new dynamic_reconfigure::Server<costmap_2d::GenericPluginConfig>(nh);
   dynamic_reconfigure::Server<costmap_2d::GenericPluginConfig>::CallbackType cb = boost::bind(
@@ -21,25 +29,15 @@ void VOLayer::onInitialize()
   dsrv_->setCallback(cb);
 }
 
+void VOLayer::PoseCallback(const geometry_msgs::PoseStampedConstPtr& msg,)
+{
+    mark_x_ = msg->pose->position->x;
+    mark_y_ = msg->pose->position->y;
+}
 
 void VOLayer::reconfigureCB(costmap_2d::GenericPluginConfig &config, uint32_t level)
 {
   enabled_ = config.enabled;
-}
-
-void VOLayer::updateBounds(double robot_x, double robot_y, double robot_yaw, double* min_x,
-                                           double* min_y, double* max_x, double* max_y)
-{
-  if (!enabled_)
-    return;
-
-  mark_x_ = robot_x + cos(robot_yaw);
-  mark_y_ = robot_y + sin(robot_yaw);
-
-  *min_x = std::min(*min_x, mark_x_);
-  *min_y = std::min(*min_y, mark_y_);
-  *max_x = std::max(*max_x, mark_x_);
-  *max_y = std::max(*max_y, mark_y_);
 }
 
 void VOLayer::updateCosts(costmap_2d::Costmap2D& master_grid, int min_i, int min_j, int max_i,

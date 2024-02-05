@@ -12,6 +12,10 @@
     <class type="costmap_2d::VoxelLayer"     base_class_type="costmap_2d::Layer">
       <description>Similar to obstacle costmap, but uses 3D voxel grid to store data.</description>
     </class>
+    <class type="costmap_2d::VOLayer"     base_class_type="costmap_2d::Layer">
+      <description>A custom layer for temi_vo package.</description>
+    </class>
+
   </library>
 </class_libraries>
 
