@@ -3,14 +3,14 @@
 #include <tf2_ros/message_filter.h>
 #include <pluginlib/class_list_macros.h>
 
-PLUGINLIB_EXPORT_CLASS(vo_layer_namespace::VOLayer, costmap_2d::Layer)
+PLUGINLIB_EXPORT_CLASS(costmap_2d::VOLayer, costmap_2d::Layer)
 
 using costmap_2d::LETHAL_OBSTACLE;
 
-namespace vo_layer_namespace
+namespace costmap_2d
 {
 
-VOLayer::VOLayer() {}
+// VOLayer::VOLayer() {}
 
 void VOLayer::onInitialize()
 {
@@ -20,24 +20,26 @@ void VOLayer::onInitialize()
 
   std::string topic;
   nh.param("topic", topic, std::string(""));
-  
-  ros::Subscriber sub=nh.subscribe(topic, 10, PoseCallback);
 
-  dsrv_ = new dynamic_reconfigure::Server<costmap_2d::GenericPluginConfig>(nh);
-  dynamic_reconfigure::Server<costmap_2d::GenericPluginConfig>::CallbackType cb = boost::bind(
+  sub_ = nh.subscribe(topic, 10, &VOLayer::PoseCallback, this);
+
+  dsrv_ = new dynamic_reconfigure::Server<costmap_2d::VOPluginConfig>(nh);
+  dynamic_reconfigure::Server<costmap_2d::VOPluginConfig>::CallbackType cb = boost::bind(
       &VOLayer::reconfigureCB, this, _1, _2);
   dsrv_->setCallback(cb);
 }
 
-void VOLayer::PoseCallback(const geometry_msgs::PoseStampedConstPtr& msg,)
+void VOLayer::PoseCallback(const geometry_msgs::PoseStampedConstPtr& msg)
 {
-    mark_x_ = msg->pose->position->x;
-    mark_y_ = msg->pose->position->y;
+    // ROS_INFO("VO pose callback");
+    mark_x_ = msg->pose.position.x;
+    mark_y_ = msg->pose.position.y;
 }
 
-void VOLayer::reconfigureCB(costmap_2d::GenericPluginConfig &config, uint32_t level)
+void VOLayer::reconfigureCB(costmap_2d::VOPluginConfig &config, uint32_t level)
 {
   enabled_ = config.enabled;
+  combination_method_ = config.combination_method;
 }
 
 void VOLayer::updateCosts(costmap_2d::Costmap2D& master_grid, int min_i, int min_j, int max_i,
@@ -45,10 +47,18 @@ void VOLayer::updateCosts(costmap_2d::Costmap2D& master_grid, int min_i, int min
 {
   if (!enabled_)
     return;
+//   ROS_INFO("VO Layer Update begin");
+  unsigned char* master_array = master_grid.getCharMap();
   unsigned int mx;
   unsigned int my;
-  if(master_grid.worldToMap(mark_x_, mark_y_, mx, my)){
-    master_grid.setCost(mx, my, LETHAL_OBSTACLE);
+//   ROS_INFO("obstacle coordinate: %f %f", mark_x_, mark_y_);
+  bool do_update = master_grid.worldToMap(mark_x_, mark_y_, mx, my);
+//   ROS_INFO("Performing Update: %d", do_update);
+  if(do_update){
+    // ROS_INFO("VO coor transform successful");
+    unsigned int index = master_grid.getIndex(mx, my);
+    // ROS_INFO("Updating cost for index %i", index);
+    master_array[index] = LETHAL_OBSTACLE;
   }
 }
 
