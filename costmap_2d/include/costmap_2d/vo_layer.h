@@ -7,6 +7,8 @@
 #include <costmap_2d/VOPluginConfig.h>
 
 #include <geometry_msgs/PoseStamped.h>
+#include <people_msgs/PositionMeasurement.h>
+#include <people_msgs/PositionMeasurementArray.h>
 #include <std_msgs/Float32MultiArray.h>
 #include <dynamic_reconfigure/server.h>
 
@@ -26,14 +28,12 @@ public:
 
 protected:
   std::string global_frame_;
-  int combination_method_;
-  void PoseCallback(const geometry_msgs::PoseStampedConstPtr& msg);
+  void PoseCallback(const people_msgs::PositionMeasurementArrayConstPtr& msg);
   ros::Subscriber sub_;
 
 private:
   void reconfigureCB(costmap_2d::VOPluginConfig &config, uint32_t level);
-
-  double mark_x_, mark_y_;
+  std::vector<people_msgs::PositionMeasurement> poses;
   dynamic_reconfigure::Server<costmap_2d::VOPluginConfig> *dsrv_;
 };
 }
